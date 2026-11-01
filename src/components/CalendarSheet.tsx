@@ -6,15 +6,15 @@ interface Props {
   open: boolean;
   selected: string;
   today: string;
-  /** Dates (YYYY-MM-DD) that have a workout for the active program. */
-  marked: Set<string>;
+  /** True when the date has a workout for the active program (repeats included). */
+  hasWorkout: (date: string) => boolean;
   onSelect: (date: string) => void;
   onClose: () => void;
 }
 
 const HEADERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-export default function CalendarSheet({ open, selected, today, marked, onSelect, onClose }: Props) {
+export default function CalendarSheet({ open, selected, today, hasWorkout, onSelect, onClose }: Props) {
   const [view, setView] = useState(() => {
     const d = fromISO(selected);
     return { y: d.getFullYear(), m: d.getMonth() };
@@ -70,7 +70,7 @@ export default function CalendarSheet({ open, selected, today, marked, onSelect,
                   'cal-day',
                   iso === selected ? 'selected' : '',
                   iso === today ? 'today' : '',
-                  marked.has(iso) ? 'marked' : '',
+                  hasWorkout(iso) ? 'marked' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}

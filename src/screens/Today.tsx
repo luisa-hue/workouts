@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import Segmented from '../components/Segmented';
 import CalendarSheet from '../components/CalendarSheet';
 import { useWorkoutIndex } from '../lib/index-context';
+import { buildSchedule } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
-import { formatLong, formatShort, todayISO, weekdayName } from '../lib/dates';
+import { formatLong, formatMedium, formatShort, todayISO, weekdayName } from '../lib/dates';
 import { cleanDescription, prettyScoreType, simpleSets } from '../lib/text';
 import { PROGRAMS, type Part, type Program, type Workout } from '../types';
 
@@ -18,16 +19,6 @@ function loadProgram(): Program {
     /* storage unavailable */
   }
   return 'BUILD';
-}
-
-function prevDate(dates: string[], from: string): string | null {
-  for (let i = dates.length - 1; i >= 0; i--) if (dates[i] < from) return dates[i];
-  return null;
-}
-
-function nextDate(dates: string[], from: string): string | null {
-  for (const d of dates) if (d > from) return d;
-  return null;
 }
 
 function PartCard({ part }: { part: Part }) {
@@ -58,14 +49,28 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  const dates = index.datesByProgram[program];
+  const schedule = useMemo(() => buildSchedule(dates), [dates]);
+  const resolved = schedule.resolve(date);
+  const source = resolved?.source ?? null; // the stored date whose workout is shown (differs on repeats)
+  const prev = schedule.prev(date);
+  const next = schedule.next(date);
+
   useEffect(() => {
+    if (!source) {
+      setRows([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
     supabase
       .from('workouts')
       .select('uid,date,weekday,program,parts')
-      .eq('date', date)
+      .eq('date', source)
+      .eq('program', program)
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
@@ -79,7 +84,7 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
     return () => {
       cancelled = true;
     };
-  }, [date, index.version]);
+  }, [source, program, index.version]);
 
   function changeProgram(p: Program) {
     setProgram(p);
@@ -90,15 +95,11 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
     }
   }
 
-  const dates = index.datesByProgram[program];
-  const marked = useMemo(() => new Set(dates), [dates]);
-  const prev = prevDate(dates, date);
-  const next = nextDate(dates, date);
-  const workout = rows.find((r) => r.program === program);
+  const workout = rows[0];
   const parts = workout?.parts ?? [];
-
   const title = date === today ? 'Today' : weekdayName(date);
   const libraryEmpty = !index.loading && index.total === 0 && !index.error;
+  const busy = index.loading || loading;
 
   return (
     <main>
@@ -106,6 +107,12 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
         <div>
           <h1 className="large-title">{title}</h1>
           <p className="subtitle">{formatLong(date)}</p>
+          {resolved && resolved.cycle > 0 && (
+            <p className="repeat">
+              <Repeat size={13} />
+              Cycle {resolved.cycle + 1} · from {formatMedium(resolved.source)}
+            </p>
+          )}
         </div>
         <div className="head-actions">
           <button type="button" className="round-btn pressable" onClick={() => prev && setDate(prev)} disabled={!prev} aria-label="Previous workout">
@@ -132,7 +139,7 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
             Open Settings
           </button>
         </section>
-      ) : loading ? (
+      ) : busy ? (
         <p className="loading">Loading…</p>
       ) : workout ? (
         parts.length > 0 ? (
@@ -146,13 +153,16 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
         <section className="card empty">
           <p className="empty-title">No {program} workout</p>
           <p className="empty-text">
-            {rows.length > 0
-              ? `There is a ${rows[0].program} workout on this day.`
-              : 'Rest day, or not imported yet.'}
+            {index.min && date < index.min ? `The program starts on ${formatMedium(index.min)}.` : 'Rest day.'}
           </p>
           {prev && (
             <button type="button" className="secondary-btn pressable" onClick={() => setDate(prev)}>
-              Go to last workout ({formatShort(prev)})
+              Previous workout ({formatShort(prev)})
+            </button>
+          )}
+          {next && (
+            <button type="button" className="secondary-btn pressable" onClick={() => setDate(next)}>
+              Next workout ({formatShort(next)})
             </button>
           )}
         </section>
@@ -162,7 +172,7 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
         open={calendarOpen}
         selected={date}
         today={today}
-        marked={marked}
+        hasWorkout={schedule.has}
         onSelect={(d) => {
           setDate(d);
           setCalendarOpen(false);

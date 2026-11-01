@@ -243,6 +243,19 @@ code {
 .empty > :last-child {
   margin-bottom: 0;
 }
+.empty .secondary-btn + .secondary-btn {
+  margin-top: 8px;
+}
+
+.repeat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+}
 
 .loading {
   text-align: center;

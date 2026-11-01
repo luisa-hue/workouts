@@ -47,6 +47,12 @@ export default function Settings({ session }: { session: Session }) {
             {index.min && index.max ? `${formatMedium(index.min)} to ${formatMedium(index.max)}` : 'None yet'}
           </span>
         </div>
+        {index.min && index.max && (
+          <div className="row">
+            <span>After that</span>
+            <span className="muted">Restarts at {formatMedium(index.min)}</span>
+          </div>
+        )}
       </section>
 
       <h2 className="section-title">Import</h2>
