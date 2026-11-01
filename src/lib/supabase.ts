@@ -1,7 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+function cleanUrl(raw: string | undefined): string | undefined {
+  const s = raw?.trim();
+  if (!s) return undefined;
+  try {
+    // Keep only the origin: a pasted ".../rest/v1/" or trailing slash breaks every request.
+    return new URL(s).origin;
+  } catch {
+    return s;
+  }
+}
+
+const url = cleanUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined);
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
 
 export const configured = Boolean(url && key);
 
