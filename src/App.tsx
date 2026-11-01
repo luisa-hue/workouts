@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './lib/supabase';
 import { IndexProvider } from './lib/index-context';
@@ -13,20 +13,17 @@ import Calculator from './screens/Calculator';
 
 function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>('today');
-  const scroller = useRef<HTMLDivElement>(null);
   const [todayTap, setTodayTap] = useState(0);
 
   function changeTab(next: Tab) {
     // Tapping Today, even when already there, jumps back to the current date.
     if (next === 'today') setTodayTap((n) => n + 1);
     setTab(next);
-    scroller.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
   }
 
-  // Only .scroll scrolls; the tab bar sits outside it so it can never move.
   return (
     <div className="app">
-      <div className="scroll" ref={scroller}>
       {/* Today stays mounted so its date and program survive tab switches. */}
       <div hidden={tab !== 'today'}>
         <Today onGoSettings={() => changeTab('settings')} jumpToToday={todayTap} />
@@ -37,7 +34,6 @@ function Shell({ session }: { session: Session }) {
       </div>
       {tab === 'calculator' && <Calculator />}
       {tab === 'settings' && <Settings session={session} />}
-      </div>
       <TabBar tab={tab} onChange={changeTab} />
     </div>
   );

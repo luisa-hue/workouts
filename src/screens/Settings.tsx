@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase';
 import { useWorkoutIndex } from '../lib/index-context';
 import { importWorkouts, type ImportSummary } from '../lib/importer';
 import { formatMedium } from '../lib/dates';
+import Segmented from '../components/Segmented';
+import { THEMES, loadTheme, saveTheme, type Theme } from '../lib/theme';
 
 type Status = { kind: 'idle' } | { kind: 'working'; message: string } | { kind: 'done'; summary: ImportSummary } | { kind: 'error'; message: string };
 
@@ -12,6 +14,12 @@ export default function Settings({ session }: { session: Session }) {
   const index = useWorkoutIndex();
   const fileInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  const [theme, setTheme] = useState<Theme>(loadTheme);
+
+  function changeTheme(t: Theme) {
+    setTheme(t);
+    saveTheme(t);
+  }
 
   async function onFiles(list: FileList | null) {
     const files = list ? Array.from(list) : [];
@@ -34,6 +42,9 @@ export default function Settings({ session }: { session: Session }) {
       <header className="page-head">
         <h1 className="large-title">Settings</h1>
       </header>
+
+      <h2 className="section-title">Appearance</h2>
+      <Segmented options={THEMES} value={theme} onChange={changeTheme} label="Appearance" />
 
       <h2 className="section-title">Library</h2>
       <section className="card list">

@@ -20,7 +20,8 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
     --bg: #f2f2f7;
     --card: #fff;
     --card2: #e5e5ea;
@@ -35,6 +36,27 @@
     --seg-thumb: #fff;
     --scrim: rgba(0, 0, 0, 0.3);
   }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f2f2f7;
+  --card: #fff;
+  --card2: #e5e5ea;
+  --text: #000;
+  --text2: rgba(60, 60, 67, 0.6);
+  --text3: rgba(60, 60, 67, 0.3);
+  --sep: rgba(60, 60, 67, 0.29);
+  --green: #4cb800;
+  --blue: #00a9b0;
+  --blur: rgba(249, 249, 249, 0.78);
+  --seg-track: rgba(118, 118, 128, 0.12);
+  --seg-thumb: #fff;
+  --scrim: rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 * {
@@ -92,34 +114,11 @@ code {
 }
 
 /* Layout */
+.app,
 .login {
   max-width: 640px;
   margin: 0 auto;
   padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 96px);
-}
-
-/* App shell: the page never scrolls, only .scroll does, so the tab bar stays put. */
-.app {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-}
-.scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-}
-.scroll > * {
-  max-width: 640px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.scroll > main,
-.scroll > div > main {
-  padding: calc(env(safe-area-inset-top) + 12px) 16px 24px;
 }
 
 .page-head {
@@ -405,7 +404,10 @@ code {
 
 /* Tab bar */
 .tabbar {
-  flex: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 20;
   background: var(--blur);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -586,7 +588,8 @@ code {
   padding: 0 8px;
   border-radius: 999px;
   background: var(--card2);
-  color: var(--text);
+  background: color-mix(in srgb, var(--blue) 16%, transparent);
+  color: var(--blue);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.6;
@@ -595,7 +598,8 @@ code {
   -webkit-user-select: none;
 }
 .rm-chip.est {
-  color: var(--blue);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 55%, transparent);
 }
 
 /* PRs */
