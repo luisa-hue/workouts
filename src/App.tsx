@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './lib/supabase';
 import { IndexProvider } from './lib/index-context';
@@ -8,18 +8,21 @@ import Login from './screens/Login';
 import Today from './screens/Today';
 import PRs from './screens/PRs';
 import Settings from './screens/Settings';
-import Placeholder from './screens/Placeholder';
+import Calculator from './screens/Calculator';
 
 function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>('today');
+  const scroller = useRef<HTMLDivElement>(null);
 
   function changeTab(next: Tab) {
     setTab(next);
-    window.scrollTo(0, 0);
+    scroller.current?.scrollTo(0, 0);
   }
 
+  // Only .scroll scrolls; the tab bar sits outside it so it can never move.
   return (
     <div className="app">
+      <div className="scroll" ref={scroller}>
       {/* Today stays mounted so its date and program survive tab switches. */}
       <div hidden={tab !== 'today'}>
         <Today onGoSettings={() => changeTab('settings')} />
@@ -28,8 +31,9 @@ function Shell({ session }: { session: Session }) {
       <div hidden={tab !== 'prs'}>
         <PRs />
       </div>
-      {tab === 'calculator' && <Placeholder title="Calculator" note="RM calculator and percentages arrive in the last stage." />}
+      {tab === 'calculator' && <Calculator />}
       {tab === 'settings' && <Settings session={session} />}
+      </div>
       <TabBar tab={tab} onChange={changeTab} />
     </div>
   );

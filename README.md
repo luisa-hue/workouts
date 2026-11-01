@@ -15,7 +15,8 @@ Personal workout app (PWA) for NEVER QUIT Burleigh BUILD / SHRED programs. Vite 
 - Today: next to each known lift, `5RM 80kg`; for `@75%` or `70-80% of 3RM`, the kg (rounded to 2.5)
 - New tables `lifts` and `records`: run `supabase/schema.sql` again (safe to re-run)
 - `npm test` checks the RM maths and the text matching (`scripts/test-lifts.ts`)
-- Calculator tab is still a placeholder
+- Calculator tab: weight x reps gives the estimated 1RM, plus a percentage table (50 to 100%) and all rep ranges 1 to 30, rounded to 2.5kg. Can start from a lift's best 1RM
+- Layout: only the content area scrolls, the tab bar is outside it so it stays fixed on iPhone
 
 ## Setup
 
