@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './lib/supabase';
 import { IndexProvider } from './lib/index-context';
+import { LiftsProvider } from './lib/lifts-context';
 import TabBar, { type Tab } from './components/TabBar';
 import Login from './screens/Login';
 import Today from './screens/Today';
+import PRs from './screens/PRs';
 import Settings from './screens/Settings';
 import Placeholder from './screens/Placeholder';
 
@@ -22,7 +24,10 @@ function Shell({ session }: { session: Session }) {
       <div hidden={tab !== 'today'}>
         <Today onGoSettings={() => changeTab('settings')} />
       </div>
-      {tab === 'prs' && <Placeholder title="PRs" note="Personal records per lift arrive in the next stage." />}
+      {/* PRs stays mounted too, so an open lift survives tab switches. */}
+      <div hidden={tab !== 'prs'}>
+        <PRs />
+      </div>
       {tab === 'calculator' && <Placeholder title="Calculator" note="RM calculator and percentages arrive in the last stage." />}
       {tab === 'settings' && <Settings session={session} />}
       <TabBar tab={tab} onChange={changeTab} />
@@ -55,7 +60,9 @@ export default function App() {
   if (!session) return <Login />;
   return (
     <IndexProvider>
-      <Shell session={session} />
+      <LiftsProvider>
+        <Shell session={session} />
+      </LiftsProvider>
     </IndexProvider>
   );
 }

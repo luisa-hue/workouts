@@ -1,0 +1,21 @@
+/** Starter library. The lift name is always matched too, so aliases only list the extra names. */
+export const DEFAULT_LIFTS: { name: string; aliases: string[] }[] = [
+  { name: 'Back Squat', aliases: ['BB Back Squat'] },
+  { name: 'Front Squat', aliases: ['BB Front Squat'] },
+  { name: 'Overhead Squat', aliases: ['OHS'] },
+  { name: 'Deadlift', aliases: ['BB Deadlift', 'Conventional Deadlift'] },
+  { name: 'Sumo Deadlift', aliases: [] },
+  { name: 'Romanian Deadlift', aliases: ['RDL'] },
+  { name: 'Bench Press', aliases: ['BB Bench Press'] },
+  { name: 'Strict Press', aliases: ['Shoulder Press', 'Overhead Press', 'Military Press', 'BB Strict Press', 'OHP'] },
+  { name: 'Push Press', aliases: ['BB Push Press'] },
+  { name: 'Push Jerk', aliases: [] },
+  { name: 'Split Jerk', aliases: [] },
+  { name: 'Power Clean', aliases: ['BB Power Clean', 'Hang Power Clean'] },
+  { name: 'Squat Clean', aliases: ['Full Clean', 'Hang Squat Clean'] },
+  { name: 'Power Snatch', aliases: ['Hang Power Snatch'] },
+  { name: 'Squat Snatch', aliases: ['Snatch', 'Full Snatch', 'Hang Squat Snatch'] },
+  { name: 'Clean and Jerk', aliases: ['Clean & Jerk', 'C&J'] },
+  { name: 'Thruster', aliases: ['BB Thruster', 'Barbell Thruster'] },
+  { name: 'Bent Over Row', aliases: ['Barbell Row', 'BB Row', 'Pendlay Row'] },
+];

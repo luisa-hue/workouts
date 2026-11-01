@@ -8,6 +8,23 @@ export interface Part {
   sets?: unknown;
 }
 
+export interface Lift {
+  id: string;
+  name: string;
+  /** Other names the lift goes by in workout text (the name itself is always matched too). */
+  aliases: string[];
+}
+
+/** A tested result: `weight_kg` for `reps` reps. */
+export interface LiftRecord {
+  id: string;
+  lift_id: string;
+  reps: number;
+  weight_kg: number;
+  date: string; // YYYY-MM-DD
+  note: string | null;
+}
+
 export interface Workout {
   uid: string;
   date: string; // YYYY-MM-DD

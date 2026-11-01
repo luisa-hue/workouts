@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import Segmented from '../components/Segmented';
 import CalendarSheet from '../components/CalendarSheet';
+import AnnotatedText from '../components/AnnotatedText';
 import { useWorkoutIndex } from '../lib/index-context';
 import { buildSchedule } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
@@ -34,7 +35,11 @@ function PartCard({ part }: { part: Part }) {
         {score && <span className="pill">{score}</span>}
       </div>
       {sets && <div className="part-sets">{sets}</div>}
-      {body && <p className="part-body">{body}</p>}
+      {body && (
+        <p className="part-body">
+          <AnnotatedText text={body} />
+        </p>
+      )}
     </section>
   );
 }
