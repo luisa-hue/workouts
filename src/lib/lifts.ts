@@ -127,7 +127,7 @@ interface Insert {
 }
 
 /** Largest rep count that still gets an RM chip. 21-15-9 style lines are conditioning, not strength. */
-const MAX_CHIP_REPS = 10;
+export const MAX_CHIP_REPS = 10;
 
 /**
  * Splits one line of workout text into plain text and chips.

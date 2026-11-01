@@ -1,6 +1,7 @@
 import { buildMatcher, annotate, readReps } from '../src/lib/lifts.ts';
 import { buildStats, estimateOneRM, rmPercent } from '../src/lib/rm.ts';
 import { unmatchedNames } from '../src/lib/names.ts';
+import { checkPR, liftsInText, suggestReps } from '../src/lib/pr.ts';
 import { DEFAULT_LIFTS } from '../src/lib/defaultLifts.ts';
 
 let fail = 0;
@@ -75,6 +76,29 @@ eq('scan plus', unmatchedNames('1 Back Squat + 3 Landmine Press', m), ['Landmine
 eq('scan noise', unmatchedNames('3 Rounds', m), []);
 eq('scan no digits', unmatchedNames('Warm up with the barbell', m), []);
 eq('scan pullups', unmatchedNames('10 Pull-ups', m), ['Pull-ups']);
+
+// PR check
+const pc = stats.get(id('Power Clean'));
+eq('pr beats tested', checkPR(pc, 5, 77.5)?.previous?.kg, 75);
+eq('pr equals tested', checkPR(pc, 5, 75), null);
+eq('pr below tested', checkPR(pc, 5, 70), null);
+eq('pr beats estimate', checkPR(pc, 3, 87.5)?.previous?.tested, false);
+eq('pr equals shown estimate', checkPR(pc, 3, 85), null);
+eq('pr first result', checkPR(undefined, 5, 60)?.previous, null);
+eq('pr first result empty stats', checkPR(buildStats([]), 1, 50)?.previous, null);
+eq('pr no alert above 10 reps', checkPR(pc, 12, 200), null);
+eq('pr bad input', checkPR(pc, 0, 80), null);
+eq('pr bad weight', checkPR(pc, 5, 0), null);
+eq('pr 1RM maths', Math.round(checkPR(pc, 5, 80)!.oneRM * 10) / 10, 89.9);
+
+// lifts in a part + reps suggestion
+eq('lifts in text', liftsInText('Strength:\n1 Power Clean + 2 Front Squat\n3 Power Clean', m), [id('Power Clean'), id('Front Squat')]);
+eq('lifts in text none', liftsInText('Run 400m', m), []);
+eq('suggest reps lead', suggestReps('5 Power Clean', m, id('Power Clean')), 5);
+eq('suggest reps 5x3', suggestReps('Warm up\n5x3 Back Squat @75%', m, id('Back Squat')), 3);
+eq('suggest reps second lift', suggestReps('1 Power Clean + 3 Push Press', m, id('Push Press')), 3);
+eq('suggest reps conditioning', suggestReps('21-15-9 Push Press', m, id('Push Press')), null);
+eq('suggest reps none', suggestReps('Back Squat @75%', m, id('Back Squat')), null);
 
 console.log(fail === 0 ? 'ALL PASS' : `${fail} FAILED`);
 process.exit(fail ? 1 : 0);

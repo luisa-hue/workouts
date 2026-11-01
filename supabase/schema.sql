@@ -111,3 +111,50 @@ create policy "records_update_own" on public.records
 create policy "records_delete_own" on public.records
   for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Stage 3: workout logs
+-- One row per calendar date + program + part. part_index = -1 is the whole
+-- workout (the "done" mark). Keyed by date, not workout uid, because loop
+-- repeats reuse the same uid.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.logs (
+  id         uuid          primary key default gen_random_uuid(),
+  user_id    uuid          not null default auth.uid() references auth.users (id) on delete cascade,
+  date       date          not null,
+  program    text          not null,                -- 'BUILD' | 'SHRED'
+  part_index integer       not null check (part_index >= -1),
+  weight_kg  numeric(7, 2) check (weight_kg is null or weight_kg > 0),
+  reps       integer       check (reps is null or reps between 1 and 100),
+  comment    text,
+  done       boolean       not null default false,  -- used by the part_index = -1 row
+  created_at timestamptz   not null default now(),
+  updated_at timestamptz   not null default now()
+);
+
+create unique index if not exists logs_user_slot_idx on public.logs (user_id, date, program, part_index);
+
+alter table public.logs enable row level security;
+
+drop policy if exists "logs_select_own" on public.logs;
+drop policy if exists "logs_insert_own" on public.logs;
+drop policy if exists "logs_update_own" on public.logs;
+drop policy if exists "logs_delete_own" on public.logs;
+
+create policy "logs_select_own" on public.logs
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "logs_insert_own" on public.logs
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "logs_update_own" on public.logs
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+create policy "logs_delete_own" on public.logs
+  for delete to authenticated
+  using ((select auth.uid()) = user_id);

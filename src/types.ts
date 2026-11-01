@@ -32,3 +32,18 @@ export interface Workout {
   program: string;
   parts: Part[] | null;
 }
+
+/** What was done on one calendar date for one part of a program's workout. */
+export interface LogEntry {
+  id: string;
+  date: string; // YYYY-MM-DD, the calendar date (not the workout uid: loop repeats reuse uids)
+  program: string;
+  /** Index of the part in the workout. -1 is the whole workout (the "done" mark). */
+  part_index: number;
+  weight_kg: number | null;
+  reps: number | null;
+  comment: string | null;
+  done: boolean;
+}
+
+export const WORKOUT_SLOT = -1;

@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './lib/supabase';
 import { IndexProvider } from './lib/index-context';
 import { LiftsProvider } from './lib/lifts-context';
+import { LogsProvider } from './lib/logs-context';
 import TabBar, { type Tab } from './components/TabBar';
 import Login from './screens/Login';
 import Today from './screens/Today';
@@ -68,7 +69,9 @@ export default function App() {
   return (
     <IndexProvider>
       <LiftsProvider>
-        <Shell session={session} />
+        <LogsProvider>
+          <Shell session={session} />
+        </LogsProvider>
       </LiftsProvider>
     </IndexProvider>
   );
