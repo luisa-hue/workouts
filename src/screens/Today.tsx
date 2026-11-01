@@ -44,7 +44,7 @@ function PartCard({ part }: { part: Part }) {
   );
 }
 
-export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
+export default function Today({ onGoSettings, jumpToToday }: { onGoSettings: () => void; jumpToToday: number }) {
   const index = useWorkoutIndex();
   const today = todayISO();
   const [date, setDate] = useState(today);
@@ -53,6 +53,14 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // The Today tab was tapped: go back to the current date.
+  useEffect(() => {
+    if (jumpToToday > 0) {
+      setDate(todayISO());
+      setCalendarOpen(false);
+    }
+  }, [jumpToToday]);
 
   const dates = index.datesByProgram[program];
   const schedule = useMemo(() => buildSchedule(dates), [dates]);
@@ -112,6 +120,11 @@ export default function Today({ onGoSettings }: { onGoSettings: () => void }) {
         <div>
           <h1 className="large-title">{title}</h1>
           <p className="subtitle">{formatLong(date)}</p>
+          {date !== today && (
+            <button type="button" className="today-btn pressable" onClick={() => setDate(today)}>
+              Back to today
+            </button>
+          )}
           {resolved && resolved.cycle > 0 && (
             <p className="repeat">
               <Repeat size={13} />

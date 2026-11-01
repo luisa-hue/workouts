@@ -13,8 +13,11 @@ import Calculator from './screens/Calculator';
 function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>('today');
   const scroller = useRef<HTMLDivElement>(null);
+  const [todayTap, setTodayTap] = useState(0);
 
   function changeTab(next: Tab) {
+    // Tapping Today, even when already there, jumps back to the current date.
+    if (next === 'today') setTodayTap((n) => n + 1);
     setTab(next);
     scroller.current?.scrollTo(0, 0);
   }
@@ -25,7 +28,7 @@ function Shell({ session }: { session: Session }) {
       <div className="scroll" ref={scroller}>
       {/* Today stays mounted so its date and program survive tab switches. */}
       <div hidden={tab !== 'today'}>
-        <Today onGoSettings={() => changeTab('settings')} />
+        <Today onGoSettings={() => changeTab('settings')} jumpToToday={todayTap} />
       </div>
       {/* PRs stays mounted too, so an open lift survives tab switches. */}
       <div hidden={tab !== 'prs'}>
