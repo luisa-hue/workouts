@@ -158,3 +158,121 @@ create policy "logs_update_own" on public.logs
 create policy "logs_delete_own" on public.logs
   for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Stage 5: gym plans (a rotation of workouts A, B, C... from the coach's xlsx)
+-- Nothing here touches the tables above, so the PushPress side keeps working.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.plans (
+  id         uuid        primary key default gen_random_uuid(),
+  user_id    uuid        not null default auth.uid() references auth.users (id) on delete cascade,
+  name       text        not null,
+  start_date date        not null,
+  months     integer     not null check (months between 1 and 24),
+  rest_days  integer[]   not null default '{}',          -- weekdays without training, 0 = Sunday ... 6 = Saturday
+  days       jsonb       not null default '[]'::jsonb,   -- [{ label, tag, items: [{ kind, name, sets, reps }] }]
+  active     boolean     not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- One active plan per user. Older plans stay (inactive) with their logs.
+create unique index if not exists plans_one_active_idx on public.plans (user_id) where active;
+
+create table if not exists public.set_logs (
+  id         uuid          primary key default gen_random_uuid(),
+  user_id    uuid          not null default auth.uid() references auth.users (id) on delete cascade,
+  plan_id    uuid          not null references public.plans (id) on delete cascade,
+  date       date          not null,
+  day_index  integer       not null check (day_index >= 0),   -- position of the workout in plans.days
+  item_index integer       not null check (item_index >= 0),  -- position of the exercise in that workout
+  set_index  integer       not null check (set_index >= 0),
+  exercise   text          not null,                          -- normalised exercise name, for "last time" across plans
+  weight_kg  numeric(7, 2) check (weight_kg is null or weight_kg >= 0),
+  reps       integer       check (reps is null or reps between 0 and 200),
+  updated_at timestamptz   not null default now()
+);
+
+create unique index if not exists set_logs_slot_idx on public.set_logs (user_id, plan_id, date, day_index, item_index, set_index);
+create index if not exists set_logs_exercise_idx on public.set_logs (user_id, exercise, date);
+
+create table if not exists public.plan_sessions (
+  id         uuid        primary key default gen_random_uuid(),
+  user_id    uuid        not null default auth.uid() references auth.users (id) on delete cascade,
+  plan_id    uuid        not null references public.plans (id) on delete cascade,
+  date       date        not null,
+  day_index  integer     not null check (day_index >= 0),
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists plan_sessions_slot_idx on public.plan_sessions (user_id, plan_id, date, day_index);
+
+alter table public.plans enable row level security;
+alter table public.set_logs enable row level security;
+alter table public.plan_sessions enable row level security;
+
+drop policy if exists "plans_select_own" on public.plans;
+drop policy if exists "plans_insert_own" on public.plans;
+drop policy if exists "plans_update_own" on public.plans;
+drop policy if exists "plans_delete_own" on public.plans;
+
+create policy "plans_select_own" on public.plans
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "plans_insert_own" on public.plans
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "plans_update_own" on public.plans
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+create policy "plans_delete_own" on public.plans
+  for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
+drop policy if exists "set_logs_select_own" on public.set_logs;
+drop policy if exists "set_logs_insert_own" on public.set_logs;
+drop policy if exists "set_logs_update_own" on public.set_logs;
+drop policy if exists "set_logs_delete_own" on public.set_logs;
+
+create policy "set_logs_select_own" on public.set_logs
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "set_logs_insert_own" on public.set_logs
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "set_logs_update_own" on public.set_logs
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+create policy "set_logs_delete_own" on public.set_logs
+  for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
+drop policy if exists "plan_sessions_select_own" on public.plan_sessions;
+drop policy if exists "plan_sessions_insert_own" on public.plan_sessions;
+drop policy if exists "plan_sessions_update_own" on public.plan_sessions;
+drop policy if exists "plan_sessions_delete_own" on public.plan_sessions;
+
+create policy "plan_sessions_select_own" on public.plan_sessions
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "plan_sessions_insert_own" on public.plan_sessions
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "plan_sessions_update_own" on public.plan_sessions
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+create policy "plan_sessions_delete_own" on public.plan_sessions
+  for delete to authenticated
+  using ((select auth.uid()) = user_id);

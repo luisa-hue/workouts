@@ -206,7 +206,7 @@ export default function Today({ onGoSettings, jumpToToday }: { onGoSettings: () 
       {libraryEmpty ? (
         <section className="card empty">
           <p className="empty-title">No workouts yet</p>
-          <p className="empty-text">Import your workout JSON files in Settings.</p>
+          <p className="empty-text">Import your workout JSON files, or a gym plan (xlsx), in Settings.</p>
           <button type="button" className="primary-btn pressable" onClick={onGoSettings}>
             Open Settings
           </button>

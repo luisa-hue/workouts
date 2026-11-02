@@ -1053,3 +1053,184 @@ code {
   font-size: 15px;
   color: var(--blue);
 }
+
+/* Stage 5: gym plan */
+.plan-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 4px 8px;
+}
+.plan-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+.plan-head .link-btn {
+  margin-left: auto;
+}
+.plan-hint {
+  margin: -4px 4px 10px;
+  font-size: 14px;
+  color: var(--text2);
+}
+.plan-note {
+  margin: 0 4px 12px;
+  font-size: 15px;
+  color: var(--text2);
+}
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 4px 14px;
+}
+.day-chip {
+  min-width: 44px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 17px;
+  font-weight: 600;
+}
+.day-chip.on {
+  background: var(--red);
+  color: #fff;
+}
+.empty .day-chips {
+  justify-content: center;
+  margin: 14px 0 0;
+}
+
+.exercise .part-head h2 {
+  font-size: 18px;
+}
+.ex-last {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--blue);
+}
+.ex-last .link-btn {
+  flex: none;
+  padding: 2px 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.set-list {
+  margin-top: 10px;
+}
+.set-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.set-n {
+  display: flex;
+  flex-direction: column;
+  padding-left: 4px;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.set-target {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.set-row input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--card2);
+  outline: none;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.set-row input::placeholder {
+  color: var(--text3);
+}
+.set-row.bad input {
+  box-shadow: inset 0 0 0 2px var(--red);
+}
+
+.card.notice {
+  box-shadow: inset 0 0 0 2px var(--red);
+}
+.notice-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.notice-text {
+  margin: 4px 0 12px;
+  font-size: 15px;
+  color: var(--text2);
+}
+.notice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-found {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.plan-found li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 0.5px solid var(--sep);
+  font-size: 16px;
+}
+.plan-found-label {
+  font-weight: 600;
+}
+.weekday-toggle {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.weekday {
+  height: 44px;
+  border-radius: 50%;
+  background: var(--card2);
+  color: var(--text2);
+  font-size: 16px;
+  font-weight: 600;
+}
+.weekday.on {
+  background: var(--red);
+  color: #fff;
+}
+.hint.warn {
+  color: var(--red);
+}
+.plan-cancel {
+  margin-top: 10px;
+}
+.card .date-field:first-of-type {
+  margin-top: 0;
+}
+.inline-select {
+  border: 0;
+  background: none;
+  color: var(--text2);
+  font-size: 16px;
+  text-align: right;
+  outline: none;
+}

@@ -4,9 +4,11 @@ import { configured, supabase } from './lib/supabase';
 import { IndexProvider } from './lib/index-context';
 import { LiftsProvider } from './lib/lifts-context';
 import { LogsProvider } from './lib/logs-context';
+import { PlansProvider, usePlans } from './lib/plans-context';
 import TabBar, { type Tab } from './components/TabBar';
 import Login from './screens/Login';
 import Today from './screens/Today';
+import PlanToday from './screens/PlanToday';
 import PRs from './screens/PRs';
 import Settings from './screens/Settings';
 import Calculator from './screens/Calculator';
@@ -14,6 +16,7 @@ import Calculator from './screens/Calculator';
 function Shell({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>('today');
   const [todayTap, setTodayTap] = useState(0);
+  const plans = usePlans();
 
   function changeTab(next: Tab) {
     // Tapping Today, even when already there, jumps back to the current date.
@@ -24,9 +27,18 @@ function Shell({ session }: { session: Session }) {
 
   return (
     <div className="app">
-      {/* Today stays mounted so its date and program survive tab switches. */}
+      {/* Today stays mounted so its date and program survive tab switches.
+          A user with a gym plan (xlsx) gets the plan view; everyone else keeps the PushPress view. */}
       <div hidden={tab !== 'today'}>
-        <Today onGoSettings={() => changeTab('settings')} jumpToToday={todayTap} />
+        {plans.loading ? (
+          <main>
+            <p className="loading">Loading…</p>
+          </main>
+        ) : plans.plan ? (
+          <PlanToday onGoSettings={() => changeTab('settings')} jumpToToday={todayTap} />
+        ) : (
+          <Today onGoSettings={() => changeTab('settings')} jumpToToday={todayTap} />
+        )}
       </div>
       {/* PRs stays mounted too, so an open lift survives tab switches. */}
       <div hidden={tab !== 'prs'}>
@@ -66,7 +78,9 @@ export default function App() {
     <IndexProvider>
       <LiftsProvider>
         <LogsProvider>
-          <Shell session={session} />
+          <PlansProvider>
+            <Shell session={session} />
+          </PlansProvider>
         </LogsProvider>
       </LiftsProvider>
     </IndexProvider>

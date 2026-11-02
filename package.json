@@ -7,13 +7,14 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "tsx scripts/test-lifts.ts"
+    "test": "tsx scripts/test-lifts.ts && tsx scripts/test-plan.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^1.66.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "read-excel-file": "^9.3.14"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
