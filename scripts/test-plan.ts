@@ -1,5 +1,5 @@
 import {
-  addDays, addMonths, exerciseKey, isTrainingDay, nextTrainingDate, parsePlanRows, planEnd, planStatus,
+  addDays, blocksOf, addMonths, exerciseKey, isTrainingDay, nextTrainingDate, parsePlanRows, planEnd, planStatus,
   prettyName, previousTrainingDate, suggestRestDays, targetReps, trainingDaysPerWeek, weekdayOf, workoutIndex,
 } from '../src/lib/plan.ts';
 
@@ -100,25 +100,46 @@ eq('letters', parsed.days.map((d) => d.label), ['A', 'B', 'C', 'D', 'E', 'F']);
 eq('tags', parsed.days.map((d) => d.tag), [null, 'CORRIDA', null, 'CORRIDA', null, 'CORRIDA']);
 const exCount = (i: number) => parsed.days[i].items.filter((x) => x.kind === 'exercise').length;
 eq('exercise counts', [0, 1, 2, 3, 4, 5].map(exCount), [9, 9, 10, 9, 10, 11]);
+const bare = (i: { kind: string; name: string; sets: number | null; reps: string } | undefined) => i && { kind: i.kind, name: i.name, sets: i.sets, reps: i.reps };
 const A = parsed.days[0];
 eq('A first lines', A.items.slice(0, 3).map((i) => i.name), ['ROLINHO E AQUECE 5MIN ESCADA', 'AGACHAMENTO BARRA LIVRE', 'FLEXÃO NÓRDICA REVERSA']);
 eq('A first kinds', A.items.slice(0, 2).map((i) => i.kind), ['note', 'exercise']);
-eq('A squat', A.items[1], { kind: 'exercise', name: 'AGACHAMENTO BARRA LIVRE', sets: 4, reps: '15/12/10/8' });
+eq('A squat', bare(A.items[1]), { kind: 'exercise', name: 'AGACHAMENTO BARRA LIVRE', sets: 4, reps: '15/12/10/8' });
 eq('A range reps', A.items[2].reps, '10 a 12');
 eq('A numeric reps', A.items[3].reps, '10');
-eq('A abs no reps', A.items.find((i) => i.name === 'ABS LIVRE'), { kind: 'exercise', name: 'ABS LIVRE', sets: 4, reps: '' });
-eq('A ends with stretch', A.items[A.items.length - 1], { kind: 'note', name: 'ALONGAMENTO', sets: null, reps: '' });
+eq('A abs no reps', bare(A.items.find((i) => i.name === 'ABS LIVRE')), { kind: 'exercise', name: 'ABS LIVRE', sets: 4, reps: '' });
+eq('A ends with stretch', bare(A.items[A.items.length - 1]), { kind: 'note', name: 'ALONGAMENTO', sets: null, reps: '' });
 const everything = parsed.days.flatMap((d) => d.items.map((i) => i.name)).join('|');
 eq('no header leaked', /COACH|CONSULT|Client|DATA DE|TREINO/i.test(everything), false);
 eq('no schedule table leaked', /SEGUNDA|CORRIDA$|coxa ant/i.test(everything), false);
 eq('C items', parsed.days[2].items.map((i) => i.name).slice(0, 2), ['ROLINHO E AQUECE 5MIN ESCADA', 'BULGARO HALTERES']);
 eq('C last is stretch', parsed.days[2].items.at(-1)!.name, 'ALONGAMENTO');
-eq('B first is cardio note', parsed.days[1].items[0], { kind: 'note', name: '5 MIN ESTEIRA(aumenta velocidade a cada min.)', sets: null, reps: '' });
-eq('D sets and reps', parsed.days[3].items.find((i) => i.name.startsWith('APOIO FECHADO')), { kind: 'exercise', name: 'APOIO FECHADO NO CHÃO(foco tríceps)', sets: 4, reps: '8 a 12' });
-eq('E slash reps', parsed.days[4].items.find((i) => i.name.startsWith('EXTENSÃO')), { kind: 'exercise', name: 'EXTENSÃO DE JOELHOS', sets: 4, reps: '8/10/12/15' });
+eq('B first is cardio note', bare(parsed.days[1].items[0]), { kind: 'note', name: '5 MIN ESTEIRA(aumenta velocidade a cada min.)', sets: null, reps: '' });
+eq('D sets and reps', bare(parsed.days[3].items.find((i) => i.name.startsWith('APOIO FECHADO'))), { kind: 'exercise', name: 'APOIO FECHADO NO CHÃO(foco tríceps)', sets: 4, reps: '8 a 12' });
+eq('E slash reps', bare(parsed.days[4].items.find((i) => i.name.startsWith('EXTENSÃO'))), { kind: 'exercise', name: 'EXTENSÃO DE JOELHOS', sets: 4, reps: '8/10/12/15' });
 eq('F ends with stretch', parsed.days[5].items.map((i) => i.name).slice(-2), ['ABS LIVRE', 'ROLINHO e ALONGAMENTO']);
 eq('weekly count', parsed.days.length, 6);
 eq('suggested rest for 6', suggestRestDays(parsed.days.length), [0]);
+
+
+// ---- blocks: rows right below each other are one bi-set / tri-set, an empty row separates blocks
+const sizes = (i: number) => blocksOf(parsed.days[i]).map((b) => b.items.length);
+eq('blocks A', sizes(0), [1, 2, 2, 2, 1, 2, 1]);
+eq('blocks B (tri-set)', sizes(1), [1, 2, 2, 3, 2, 1]);
+eq('blocks C', sizes(2), [1, 2, 2, 2, 2, 2, 1]);
+eq('blocks D (tri-set)', sizes(3), [1, 2, 2, 3, 2, 1]);
+eq('blocks E', sizes(4), [1, 2, 2, 2, 2, 2, 1]);
+eq('blocks F (tri-set)', sizes(5), [1, 2, 2, 2, 2, 3, 1]);
+eq('block kinds A', blocksOf(parsed.days[0]).map((b) => b.kind), ['note', 'biset', 'biset', 'biset', 'solo', 'biset', 'note']);
+eq('block kinds B', blocksOf(parsed.days[1]).map((b) => b.kind), ['note', 'biset', 'biset', 'triset', 'biset', 'note']);
+eq('A first bi-set', blocksOf(parsed.days[0])[1].items.map((x) => x.item.name), ['AGACHAMENTO BARRA LIVRE', 'FLEXÃO NÓRDICA REVERSA']);
+eq('A solo', blocksOf(parsed.days[0])[4].items.map((x) => x.item.name), ['GLÚTEO COICE POLIA']);
+eq('A abs pairs with glute', blocksOf(parsed.days[0])[3].items.map((x) => x.item.name), ['GLUTEO POLIA JOELHO ESTENDIDO/CRUZADO', 'ABS LIVRE']);
+eq('B tri-set', blocksOf(parsed.days[1])[3].items.map((x) => x.item.name), ['SUPINO RETO BARRA LIVRE', 'CRUCIFIXO INVERSO HALTERES', 'BÍCEPS MARTELO HALTERES']);
+eq('block key and index', blocksOf(parsed.days[0])[1].items.map((x) => x.index), [1, 2]);
+eq('stretch right below a block stays a note', blocksOf(parsed.days[1]).at(-1)!.kind, 'note');
+eq('old plans without groups: all solo', blocksOf({ items: [{ kind: 'exercise', name: 'X', sets: 3, reps: '10' }, { kind: 'exercise', name: 'Y', sets: 3, reps: '10' }] }).map((b) => b.kind), ['solo', 'solo']);
+eq('parse groups small', parsePlanRows([['TREINO A'], ['W'], [null], ['X', 3, 10], ['Y', 3, 10], ['Z', 3, 10], [null], ['S', 3, 10], ['STRETCH']]).days[0].items.map((i) => i.group), [0, 1, 1, 1, 2, 3]);
 
 // header line right above a block-ending header is dropped even without empty rows
 eq('banner right after items', parsePlanRows([['TREINO A', 'SÉRIE', 'REP.'], ['X', 3, 10], ['COACH NAME'], ['CONSULTORIA E PERIODIZAÇÃO']]).days[0].items.map((i) => i.name), ['X']);

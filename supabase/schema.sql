@@ -186,12 +186,16 @@ create table if not exists public.set_logs (
   date       date          not null,
   day_index  integer       not null check (day_index >= 0),   -- position of the workout in plans.days
   item_index integer       not null check (item_index >= 0),  -- position of the exercise in that workout
-  set_index  integer       not null check (set_index >= 0),
+  set_index  integer       not null check (set_index >= 0),   -- always 0: one result per exercise
   exercise   text          not null,                          -- normalised exercise name, for "last time" across plans
   weight_kg  numeric(7, 2) check (weight_kg is null or weight_kg >= 0),
   reps       integer       check (reps is null or reps between 0 and 200),
+  comment    text,                                            -- the block's comment, on the block's first exercise
   updated_at timestamptz   not null default now()
 );
+
+-- For databases where an earlier version of this block already ran.
+alter table public.set_logs add column if not exists comment text;
 
 create unique index if not exists set_logs_slot_idx on public.set_logs (user_id, plan_id, date, day_index, item_index, set_index);
 create index if not exists set_logs_exercise_idx on public.set_logs (user_id, exercise, date);

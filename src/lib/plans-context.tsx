@@ -14,8 +14,16 @@ export interface NewPlan {
 
 export interface LastTime {
   date: string;
-  /** By set index. */
-  sets: { weight_kg: number | null; reps: number | null }[];
+  weight_kg: number | null;
+  reps: number | null;
+}
+
+export interface BlockEntry {
+  itemIndex: number;
+  /** exerciseKey(name) */
+  exercise: string;
+  weight: number | null;
+  reps: number | null;
 }
 
 interface PlansValue {
@@ -30,19 +38,16 @@ interface PlansValue {
   isDone: (date: string, dayIndex: number) => boolean;
   /** Workouts (indexes into plan.days) that have logs or a done mark on this date. */
   loggedDays: (date: string) => number[];
-  setLog: (date: string, dayIndex: number, itemIndex: number, setIndex: number) => SetLog | undefined;
+  /** The logged result of one exercise on a date (its row also carries the block's comment when it is the first). */
+  setLog: (date: string, dayIndex: number, itemIndex: number) => SetLog | undefined;
   /** The most recent day before `beforeDate` where this exercise was logged. */
   lastTime: (exercise: string, beforeDate: string) => LastTime | null;
-  /** Saves one set. Empty weight and reps removes it. */
-  saveSet: (
-    date: string,
-    dayIndex: number,
-    itemIndex: number,
-    setIndex: number,
-    exercise: string,
-    weight: number | null,
-    reps: number | null,
-  ) => Promise<void>;
+  /**
+   * Saves the log of one block: a result per exercise plus one comment (kept on the first exercise).
+   * Exercises left empty are removed.
+   */
+  saveBlock: (date: string, dayIndex: number, entries: BlockEntry[], comment: string) => Promise<void>;
+  removeBlock: (date: string, dayIndex: number, itemIndexes: number[]) => Promise<void>;
   setDone: (date: string, dayIndex: number, done: boolean) => Promise<void>;
   /** Makes this the active plan; the previous one is kept (inactive) with its logs. */
   createPlan: (p: NewPlan) => Promise<void>;
@@ -68,7 +73,7 @@ function friendly(e: ErrorLike): Error {
 }
 
 const PLAN_COLS = 'id,name,start_date,months,rest_days,days,active';
-const SET_COLS = 'id,plan_id,date,day_index,item_index,set_index,exercise,weight_kg,reps';
+const SET_COLS = 'id,plan_id,date,day_index,item_index,set_index,exercise,weight_kg,reps,comment';
 const SESSION_COLS = 'plan_id,date,day_index';
 /** How far back set logs are loaded; enough for "last time" without pulling years of history. */
 const HISTORY_DAYS = 200;
@@ -79,7 +84,7 @@ interface Session {
   day_index: number;
 }
 
-const setKey = (planId: string, date: string, day: number, item: number, set: number) => `${planId}|${date}|${day}|${item}|${set}`;
+const setKey = (planId: string, date: string, day: number, item: number) => `${planId}|${date}|${day}|${item}`;
 const sessionKey = (planId: string, date: string, day: number) => `${planId}|${date}|${day}`;
 
 async function fetchAll<T>(table: string, columns: string, since: string): Promise<{ rows: T[]; error: ErrorLike | null }> {
@@ -102,6 +107,8 @@ async function fetchAll<T>(table: string, columns: string, since: string): Promi
 function normalizePlan(r: Plan): Plan {
   return { ...r, rest_days: r.rest_days ?? [], days: r.days ?? [] };
 }
+
+const itemSlot = (r: Pick<SetLog, 'plan_id' | 'date' | 'day_index' | 'item_index'>) => setKey(r.plan_id, r.date, r.day_index, r.item_index);
 
 function normalizeSet(r: SetLog): SetLog {
   return { ...r, weight_kg: r.weight_kg === null ? null : Number(r.weight_kg) };
@@ -145,7 +152,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const setsByKey = useMemo(
-    () => new Map(state.sets.map((r) => [setKey(r.plan_id, r.date, r.day_index, r.item_index, r.set_index), r])),
+    () => new Map(state.sets.map((r) => [itemSlot(r), r])),
     [state.sets],
   );
   const sessionKeys = useMemo(() => new Set(state.sessions.map((r) => sessionKey(r.plan_id, r.date, r.day_index))), [state.sessions]);
@@ -169,14 +176,6 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PlansValue>(() => {
     const plan = state.plan;
 
-    function putSet(row: SetLog) {
-      setState((s) => {
-        const k = setKey(row.plan_id, row.date, row.day_index, row.item_index, row.set_index);
-        const rest = s.sets.filter((r) => setKey(r.plan_id, r.date, r.day_index, r.item_index, r.set_index) !== k);
-        return { ...s, sets: [...rest, row] };
-      });
-    }
-
     return {
       loading: state.loading,
       error: state.error,
@@ -193,55 +192,69 @@ export function PlansProvider({ children }: { children: ReactNode }) {
             ].sort((a, b) => a - b)
           : [],
       isDone: (date, dayIndex) => (plan ? sessionKeys.has(sessionKey(plan.id, date, dayIndex)) : false),
-      setLog: (date, dayIndex, itemIndex, setIndex) => (plan ? setsByKey.get(setKey(plan.id, date, dayIndex, itemIndex, setIndex)) : undefined),
+      setLog: (date, dayIndex, itemIndex) => (plan ? setsByKey.get(setKey(plan.id, date, dayIndex, itemIndex)) : undefined),
       lastTime(exercise, beforeDate) {
         const days = history.get(exercise);
         const found = days?.find(([date]) => date < beforeDate);
         if (!found) return null;
-        const sets: LastTime['sets'] = [];
-        for (const r of found[1]) sets[r.set_index] = { weight_kg: r.weight_kg, reps: r.reps };
-        return { date: found[0], sets };
+        const row = [...found[1]].sort((x, y) => x.item_index - y.item_index)[0];
+        return { date: found[0], weight_kg: row.weight_kg, reps: row.reps };
       },
-      async saveSet(date, dayIndex, itemIndex, setIndex, exercise, weight, reps) {
+      async saveBlock(date, dayIndex, entries, comment) {
         if (!plan) return;
-        const k = setKey(plan.id, date, dayIndex, itemIndex, setIndex);
-        if (weight === null && reps === null) {
-          if (!setsByKey.has(k)) return;
+        const note = comment.trim() || null;
+        // The comment lives on the first exercise's row.
+        const rows = entries.map((e, i) => ({ e, comment: i === 0 ? note : null }));
+        const keep = rows.filter((r) => r.e.weight !== null || r.e.reps !== null || r.comment !== null);
+        const drop = rows.filter((r) => !keep.includes(r) && setsByKey.has(setKey(plan.id, date, dayIndex, r.e.itemIndex)));
+        let saved: SetLog[] = [];
+        if (keep.length > 0) {
+          const { data, error } = await supabase
+            .from('set_logs')
+            .upsert(
+              keep.map((r) => ({
+                plan_id: plan.id,
+                date,
+                day_index: dayIndex,
+                item_index: r.e.itemIndex,
+                set_index: 0,
+                exercise: r.e.exercise,
+                weight_kg: r.e.weight,
+                reps: r.e.reps,
+                comment: r.comment,
+                updated_at: new Date().toISOString(),
+              })),
+              { onConflict: 'user_id,plan_id,date,day_index,item_index,set_index' },
+            )
+            .select(SET_COLS);
+          if (error) throw friendly(error);
+          saved = ((data ?? []) as unknown as SetLog[]).map(normalizeSet);
+        }
+        if (drop.length > 0) {
           const { error } = await supabase
             .from('set_logs')
             .delete()
             .eq('plan_id', plan.id)
             .eq('date', date)
             .eq('day_index', dayIndex)
-            .eq('item_index', itemIndex)
-            .eq('set_index', setIndex);
+            .in('item_index', drop.map((r) => r.e.itemIndex));
           if (error) throw friendly(error);
-          setState((s) => ({
-            ...s,
-            sets: s.sets.filter((r) => setKey(r.plan_id, r.date, r.day_index, r.item_index, r.set_index) !== k),
-          }));
-          return;
         }
-        const { data, error } = await supabase
+        const touched = new Set(rows.map((r) => setKey(plan.id, date, dayIndex, r.e.itemIndex)));
+        setState((s) => ({ ...s, sets: [...s.sets.filter((r) => !touched.has(itemSlot(r))), ...saved] }));
+      },
+      async removeBlock(date, dayIndex, itemIndexes) {
+        if (!plan || itemIndexes.length === 0) return;
+        const { error } = await supabase
           .from('set_logs')
-          .upsert(
-            {
-              plan_id: plan.id,
-              date,
-              day_index: dayIndex,
-              item_index: itemIndex,
-              set_index: setIndex,
-              exercise,
-              weight_kg: weight,
-              reps,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id,plan_id,date,day_index,item_index,set_index' },
-          )
-          .select(SET_COLS)
-          .single();
+          .delete()
+          .eq('plan_id', plan.id)
+          .eq('date', date)
+          .eq('day_index', dayIndex)
+          .in('item_index', itemIndexes);
         if (error) throw friendly(error);
-        putSet(normalizeSet(data as unknown as SetLog));
+        const gone = new Set(itemIndexes.map((i) => setKey(plan.id, date, dayIndex, i)));
+        setState((s) => ({ ...s, sets: s.sets.filter((r) => !gone.has(itemSlot(r))) }));
       },
       async setDone(date, dayIndex, done) {
         if (!plan) return;

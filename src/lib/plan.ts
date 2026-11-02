@@ -9,6 +9,11 @@ export interface PlanItem {
   sets: number | null;
   /** Target reps as written by the coach: "10", "15/12/10/8", "10 a 12". Empty when none. */
   reps: string;
+  /**
+   * Items with the same group are done together, one set of each in turn (bi-set, tri-set).
+   * Missing on plans saved before groups existed: every item then counts as its own block.
+   */
+  group?: number;
 }
 
 export interface PlanDay {
@@ -17,6 +22,39 @@ export interface PlanDay {
   /** Extra text from the heading, e.g. "CORRIDA" for "TREINO B(CORRIDA)". */
   tag: string | null;
   items: PlanItem[];
+}
+
+export type BlockKind = 'note' | 'solo' | 'biset' | 'triset' | 'giant';
+
+export interface PlanBlock {
+  /** Index of the block's first item in day.items; unique within the day. */
+  key: number;
+  kind: BlockKind;
+  items: { item: PlanItem; index: number }[];
+}
+
+/** Label for blocks of more than one exercise; solo exercises and notes have none. */
+export const BLOCK_LABEL: Partial<Record<BlockKind, string>> = { biset: 'Bi-set', triset: 'Tri-set', giant: 'Giant set' };
+
+/** A workout as the coach wrote it: warm-up and stretching notes, then solo exercises and bi-/tri-sets. */
+export function blocksOf(day: Pick<PlanDay, 'items'>): PlanBlock[] {
+  const out: PlanBlock[] = [];
+  let current: PlanBlock | null = null;
+  let currentGroup: number | null = null;
+  day.items.forEach((item, index) => {
+    const group = item.group ?? index;
+    if (!current || group !== currentGroup) {
+      current = { key: index, kind: 'solo', items: [] };
+      out.push(current);
+      currentGroup = group;
+    }
+    current.items.push({ item, index });
+  });
+  for (const b of out) {
+    const n = b.items.length;
+    b.kind = b.items[0].item.kind === 'note' ? 'note' : n === 1 ? 'solo' : n === 2 ? 'biset' : n === 3 ? 'triset' : 'giant';
+  }
+  return out;
 }
 
 export interface Plan {
@@ -35,11 +73,14 @@ export interface SetLog {
   date: string;
   day_index: number;
   item_index: number;
+  /** Always 0: one result per exercise, as in the PushPress log. */
   set_index: number;
   /** exerciseKey(name), so "last time" works across plans. */
   exercise: string;
   weight_kg: number | null;
   reps: number | null;
+  /** The block's comment, kept on the row of the block's first exercise. */
+  comment: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -282,7 +323,15 @@ export function parsePlanRows(rows: readonly (readonly Cell[])[]): ParsedPlan {
       if (sets !== null || repsCell) found.push({ row: r, item: { kind: 'exercise', name: nameCell, sets: sets ?? 1, reps: repsCell } });
       else found.push({ row: r, item: { kind: 'note', name: nameCell, sets: null, reps: '' } });
     }
-    const items = found.map((f) => f.item);
+    // Rows right below each other form one block (bi-set, tri-set); an empty row starts a new one.
+    // Warm-up and stretching notes always stand alone.
+    let group = -1;
+    let prev: { row: number; kind: PlanItem['kind'] } | null = null;
+    const items: PlanItem[] = found.map((f) => {
+      if (!prev || f.row !== prev.row + 1 || f.item.kind === 'note' || prev.kind === 'note') group++;
+      prev = { row: f.row, kind: f.item.kind };
+      return { ...f.item, group };
+    });
     if (items.some((i) => i.kind === 'exercise')) days.push({ label: h.label, tag: h.tag, items });
   }
 

@@ -20,7 +20,7 @@ function parseNum(s: string): number {
 }
 
 /** Keeps the sheet above the iOS keyboard: how much of the layout viewport the keyboard covers. */
-function useKeyboardInset(active: boolean): { bottom: number; height: number | null } {
+export function useKeyboardInset(active: boolean): { bottom: number; height: number | null } {
   const [v, setV] = useState<{ bottom: number; height: number | null }>({ bottom: 0, height: null });
   useEffect(() => {
     const vv = window.visualViewport;

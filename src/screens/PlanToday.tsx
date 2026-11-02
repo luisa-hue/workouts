@@ -1,163 +1,85 @@
 import { useEffect, useState } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Pencil, Plus } from 'lucide-react';
 import CalendarSheet from '../components/CalendarSheet';
+import PlanLogSheet, { type PlanLogTarget } from '../components/PlanLogSheet';
 import { usePlans } from '../lib/plans-context';
 import {
+  BLOCK_LABEL,
+  blocksOf,
   dayNum,
-  exerciseKey,
   isTrainingDay,
   nextTrainingDate,
   planEnd,
   planStatus,
   prettyName,
   previousTrainingDate,
-  targetReps,
   workoutIndex,
   type Plan,
-  type PlanItem,
+  type PlanBlock,
   type SetLog,
 } from '../lib/plan';
 import { formatKg } from '../lib/rm';
 import { formatLong, formatMedium, formatShort, todayISO, weekdayName } from '../lib/dates';
 
-function parseNum(s: string): number {
-  return Number(s.trim().replace(',', '.'));
-}
-
-const show = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n));
-
-function SetRow({
-  index,
-  target,
-  saved,
-  placeholderKg,
-  placeholderReps,
-  onSave,
+function BlockCard({
+  date,
+  dayIndex,
+  block,
+  onLog,
 }: {
-  index: number;
-  target: string;
-  saved: SetLog | undefined;
-  placeholderKg: string;
-  placeholderReps: string;
-  onSave: (weight: number | null, reps: number | null) => void;
+  date: string;
+  dayIndex: number;
+  block: PlanBlock;
+  onLog: () => void;
 }) {
-  const [kg, setKg] = useState(show(saved?.weight_kg));
-  const [reps, setReps] = useState(show(saved?.reps));
-  const [bad, setBad] = useState(false);
-
-  // Follow the saved values when they change from outside (e.g. "Use last time").
-  useEffect(() => {
-    setKg(show(saved?.weight_kg));
-    setReps(show(saved?.reps));
-  }, [saved?.weight_kg, saved?.reps]);
-
-  function commit() {
-    const w = kg.trim() ? parseNum(kg) : null;
-    const r = reps.trim() ? parseNum(reps) : null;
-    const ok = (w === null || (Number.isFinite(w) && w >= 0 && w <= 1000)) && (r === null || (Number.isInteger(r) && r >= 0 && r <= 200));
-    setBad(!ok);
-    if (!ok) return;
-    if (w === (saved?.weight_kg ?? null) && r === (saved?.reps ?? null)) return;
-    onSave(w, r);
-  }
-
-  return (
-    <div className={bad ? 'set-row bad' : 'set-row'}>
-      <span className="set-n">
-        {index + 1}
-        {target && <span className="set-target">{target}</span>}
-      </span>
-      <input
-        type="text"
-        inputMode="decimal"
-        placeholder={placeholderKg || 'kg'}
-        aria-label={`Set ${index + 1} weight in kg`}
-        value={kg}
-        onChange={(e) => setKg(e.target.value)}
-        onBlur={commit}
-      />
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder={placeholderReps || 'reps'}
-        aria-label={`Set ${index + 1} reps`}
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-        onBlur={commit}
-      />
-    </div>
-  );
-}
-
-function ExerciseCard({ date, dayIndex, itemIndex, item }: { date: string; dayIndex: number; itemIndex: number; item: PlanItem }) {
   const plans = usePlans();
-  const [problem, setProblem] = useState<string | null>(null);
-  const key = exerciseKey(item.name);
-  const last = plans.lastTime(key, date);
-  const count = item.sets ?? 1;
-  const lastSets = last ? last.sets.filter(Boolean) : [];
-  const hasAny = Array.from({ length: count }, (_, i) => plans.setLog(date, dayIndex, itemIndex, i)).some(Boolean);
-
-  async function save(i: number, w: number | null, r: number | null) {
-    setProblem(null);
-    try {
-      await plans.saveSet(date, dayIndex, itemIndex, i, key, w, r);
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : 'Could not save.');
-    }
-  }
-
-  function fillFromLast() {
-    if (!last) return;
-    void (async () => {
-      for (let i = 0; i < count; i++) {
-        const s = last.sets[i];
-        if (s) await save(i, s.weight_kg, s.reps);
-      }
-    })();
-  }
-
-  const lastText = lastSets
-    .map((s) => `${s.weight_kg !== null ? formatKg(s.weight_kg) : '–'}${s.reps !== null ? ` × ${s.reps}` : ''}`)
-    .join(' · ');
+  const label = BLOCK_LABEL[block.kind];
+  const logs = block.items.map((x) => ({ x, log: plans.setLog(date, dayIndex, x.index) }));
+  const logged = logs.filter((l) => l.log && (l.log.weight_kg !== null || l.log.reps !== null));
+  const comment = logs[0]?.log?.comment ?? null;
+  const has = logs.some((l) => l.log);
+  const solo = block.items.length === 1;
+  const result = (l: SetLog) =>
+    l.weight_kg !== null && l.reps !== null ? `${formatKg(l.weight_kg)} × ${l.reps}` : l.weight_kg !== null ? formatKg(l.weight_kg) : l.reps !== null ? `${l.reps} reps` : '';
 
   return (
-    <section className="card part exercise">
-      <div className="part-head">
-        <h2>{prettyName(item.name)}</h2>
-        <span className="pill">{item.reps ? `${count} × ${item.reps}` : `${count} ${count === 1 ? 'set' : 'sets'}`}</span>
-      </div>
-      {last && (
-        <p className="ex-last">
-          <span>
-            Last time, {formatMedium(last.date)}: {lastText}
+    <section className="card part block">
+      {label && <div className="part-sets">{label}</div>}
+      <ul className="block-list">
+        {block.items.map(({ item, index }) => (
+          <li key={index}>
+            <span className="block-name">{prettyName(item.name)}</span>
+            <span className="block-target">{item.reps ? `${item.sets} × ${item.reps}` : `${item.sets} ${item.sets === 1 ? 'set' : 'sets'}`}</span>
+          </li>
+        ))}
+      </ul>
+      {has ? (
+        <button type="button" className="logged pressable" onClick={onLog} aria-label="Edit log">
+          <Check size={16} className="logged-check" />
+          <span className="logged-text">
+            {logged.map(({ x, log }) =>
+              solo ? (
+                <span key={x.index} className="logged-main">
+                  {result(log!)}
+                </span>
+              ) : (
+                <span key={x.index} className="logged-line">
+                  <span className="logged-ex">{prettyName(x.item.name)}</span>
+                  <span className="logged-main">{result(log!)}</span>
+                </span>
+              ),
+            )}
+            {comment && <span className="logged-note">{comment}</span>}
+            {logged.length === 0 && !comment && <span className="logged-main">Logged</span>}
           </span>
-          {!hasAny && (
-            <button type="button" className="link-btn pressable" onClick={fillFromLast}>
-              Use
-            </button>
-          )}
-        </p>
+          <Pencil size={15} className="logged-edit" />
+        </button>
+      ) : (
+        <button type="button" className="log-btn pressable" onClick={onLog}>
+          <Plus size={16} />
+          Log
+        </button>
       )}
-      <div className="set-list">
-        {Array.from({ length: count }, (_, i) => {
-          const before = last?.sets[i] ?? lastSets[lastSets.length - 1];
-          const target = targetReps(item.reps, i);
-          const firstNumber = /\d+/.exec(target)?.[0] ?? '';
-          return (
-            <SetRow
-              key={i}
-              index={i}
-              target={target}
-              saved={plans.setLog(date, dayIndex, itemIndex, i)}
-              placeholderKg={before?.weight_kg != null ? String(before.weight_kg) : ''}
-              placeholderReps={firstNumber || (before?.reps != null ? String(before.reps) : '')}
-              onSave={(w, r) => void save(i, w, r)}
-            />
-          );
-        })}
-      </div>
-      {problem && <p className="error">{problem}</p>}
     </section>
   );
 }
@@ -169,6 +91,7 @@ function PlanTodayInner({ plan, onGoSettings, jumpToToday }: { plan: Plan; onGoS
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [override, setOverride] = useState<number | null>(null);
+  const [logTarget, setLogTarget] = useState<PlanLogTarget | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -183,6 +106,7 @@ function PlanTodayInner({ plan, onGoSettings, jumpToToday }: { plan: Plan; onGoS
     setOverride(null);
     setPicking(false);
     setProblem(null);
+    setLogTarget(null);
   }, [date]);
 
   const scheduled = workoutIndex(plan, date);
@@ -304,13 +228,19 @@ function PlanTodayInner({ plan, onGoSettings, jumpToToday }: { plan: Plan; onGoS
           )}
           {picking && chips}
 
-          {day.items.map((item, i) =>
-            item.kind === 'note' ? (
-              <p key={i} className="plan-note">
-                {prettyName(item.name)}
+          {blocksOf(day).map((b) =>
+            b.kind === 'note' ? (
+              <p key={b.key} className="plan-note">
+                {prettyName(b.items[0].item.name)}
               </p>
             ) : (
-              <ExerciseCard key={`${date}|${dayIndex}|${i}`} date={date} dayIndex={dayIndex} itemIndex={i} item={item} />
+              <BlockCard
+                key={`${date}|${dayIndex}|${b.key}`}
+                date={date}
+                dayIndex={dayIndex}
+                block={b}
+                onLog={() => setLogTarget({ date, dayIndex, kind: b.kind, items: b.items })}
+              />
             ),
           )}
 
@@ -344,6 +274,8 @@ function PlanTodayInner({ plan, onGoSettings, jumpToToday }: { plan: Plan; onGoS
           {picking && chips}
         </section>
       )}
+
+      <PlanLogSheet target={logTarget} onClose={() => setLogTarget(null)} />
 
       <CalendarSheet
         open={calendarOpen}

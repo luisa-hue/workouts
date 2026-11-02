@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { FileSpreadsheet } from 'lucide-react';
 import { usePlans, type NewPlan } from '../lib/plans-context';
-import { parsePlanRows, planEnd, prettyName, suggestRestDays, trainingDaysPerWeek, type ParsedPlan } from '../lib/plan';
+import { blocksOf, parsePlanRows, planEnd, prettyName, suggestRestDays, trainingDaysPerWeek, type ParsedPlan } from '../lib/plan';
 import { formatMedium, todayISO, weekdayName } from '../lib/dates';
 
 /** Monday first. */
@@ -70,7 +70,8 @@ function ImportForm({ parsed, fileName, replacing, onDone, onCancel }: { parsed:
           <li key={d.label}>
             <span className="plan-found-label">Treino {d.label}</span>
             <span className="muted">
-              {d.items.filter((i) => i.kind === 'exercise').length} exercises{d.tag ? ` · ${prettyName(d.tag)}` : ''}
+              {d.items.filter((i) => i.kind === 'exercise').length} exercises in {blocksOf(d).filter((b) => b.kind !== 'note').length} blocks
+              {d.tag ? ` · ${prettyName(d.tag)}` : ''}
             </span>
           </li>
         ))}
