@@ -24,6 +24,15 @@ export default function Settings({ session }: { session: Session }) {
     saveTheme(t);
   }
 
+  const [iconLinkCopied, setIconLinkCopied] = useState(false);
+  function copyIconLink() {
+    const url = `${window.location.origin}/#icon`;
+    void navigator.clipboard?.writeText(url).then(() => {
+      setIconLinkCopied(true);
+      window.setTimeout(() => setIconLinkCopied(false), 2500);
+    }, () => window.prompt('Copy this link and open it in Safari', url));
+  }
+
   async function onFiles(list: FileList | null) {
     const files = list ? Array.from(list) : [];
     if (fileInput.current) fileInput.current.value = '';
@@ -48,6 +57,19 @@ export default function Settings({ session }: { session: Session }) {
 
       <h2 className="section-title">Appearance</h2>
       <Segmented options={THEMES} value={theme} onChange={changeTheme} label="Appearance" />
+
+      <h2 className="section-title">App icon</h2>
+      <section className="card">
+        <p className="card-text">
+          iPhone sets the icon when the app is added to the Home Screen. Choose one on the icon page in Safari, then add the app again.
+        </p>
+        <button type="button" className="secondary-btn pressable" onClick={copyIconLink}>
+          {iconLinkCopied ? 'Link copied. Paste it in Safari' : 'Copy icon page link'}
+        </button>
+        <a className="link-btn" href="/#icon" target="_blank" rel="noopener">
+          Open icon page
+        </a>
+      </section>
 
       <PlanSettings />
 
