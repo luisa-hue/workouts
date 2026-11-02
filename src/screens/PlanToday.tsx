@@ -228,11 +228,12 @@ function PlanTodayInner({ plan, onGoSettings, jumpToToday }: { plan: Plan; onGoS
           )}
           {picking && chips}
 
-          {blocksOf(day).map((b) =>
+          {blocksOf(day).map((b, bi, all) =>
             b.kind === 'note' ? (
-              <p key={b.key} className="plan-note">
-                {prettyName(b.items[0].item.name)}
-              </p>
+              <section key={b.key} className="plan-note">
+                <span className="plan-note-label">{all.slice(0, bi).some((x) => x.kind !== 'note') ? 'Cool-down' : 'Warm-up'}</span>
+                <span className="plan-note-text">{prettyName(b.items[0].item.name)}</span>
+              </section>
             ) : (
               <BlockCard
                 key={`${date}|${dayIndex}|${b.key}`}
