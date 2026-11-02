@@ -1111,24 +1111,24 @@ code {
 }
 .block-list li {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  padding: 9px 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 0;
   border-top: 0.5px solid var(--sep);
-  font-size: 17px;
 }
 .block-list li:first-child {
   border-top: 0;
   padding-top: 0;
 }
 .block-name {
+  font-size: 18px;
   font-weight: 600;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .block-target {
-  flex: none;
-  font-size: 15px;
+  font-size: 17px;
+  font-weight: 500;
   color: var(--text2);
   font-variant-numeric: tabular-nums;
 }

@@ -1,5 +1,5 @@
 import {
-  addDays, blocksOf, addMonths, exerciseKey, isTrainingDay, nextTrainingDate, parsePlanRows, planEnd, planStatus,
+  addDays, blocksOf, parsePlanJson, planToJson, addMonths, exerciseKey, isTrainingDay, nextTrainingDate, parsePlanRows, planEnd, planStatus,
   prettyName, previousTrainingDate, suggestRestDays, targetReps, trainingDaysPerWeek, weekdayOf, workoutIndex,
 } from '../src/lib/plan.ts';
 
@@ -140,6 +140,33 @@ eq('block key and index', blocksOf(parsed.days[0])[1].items.map((x) => x.index),
 eq('stretch right below a block stays a note', blocksOf(parsed.days[1]).at(-1)!.kind, 'note');
 eq('old plans without groups: all solo', blocksOf({ items: [{ kind: 'exercise', name: 'X', sets: 3, reps: '10' }, { kind: 'exercise', name: 'Y', sets: 3, reps: '10' }] }).map((b) => b.kind), ['solo', 'solo']);
 eq('parse groups small', parsePlanRows([['TREINO A'], ['W'], [null], ['X', 3, 10], ['Y', 3, 10], ['Z', 3, 10], [null], ['S', 3, 10], ['STRETCH']]).days[0].items.map((i) => i.group), [0, 1, 1, 1, 2, 3]);
+
+
+// ---- plan file (.json): written by planToJson, read by parsePlanJson
+const file = JSON.parse(JSON.stringify(planToJson(parsed)));
+eq('json header', [file.format, file.version, file.name, file.days.length], ['workouts-plan', 1, 'Treino 18', 6]);
+eq('json block types A', file.days[0].blocks.map((b: { type: string }) => b.type), ['note', 'bi-set', 'bi-set', 'bi-set', 'solo', 'bi-set', 'note']);
+eq('json block types B', file.days[1].blocks.map((b: { type: string }) => b.type), ['note', 'bi-set', 'bi-set', 'tri-set', 'bi-set', 'note']);
+eq('json first bi-set', file.days[0].blocks[1], { type: 'bi-set', exercises: [{ name: 'Agachamento Barra Livre', sets: 4, reps: '15/12/10/8' }, { name: 'Flexão Nórdica Reversa', sets: 4, reps: '10 a 12' }] });
+eq('json note', file.days[0].blocks[0], { type: 'note', text: 'Rolinho e Aquece 5min Escada' });
+eq('json no reps omitted', file.days[0].blocks[3].exercises[1], { name: 'Abs Livre', sets: 4 });
+eq('json tag', file.days.map((d: { tag: string | null }) => d.tag), [null, 'Corrida', null, 'Corrida', null, 'Corrida']);
+const back = parsePlanJson(file);
+eq('json round trip: name', back.name, 'Treino 18');
+eq('json round trip: block sizes', [0, 1, 2, 3, 4, 5].map((i) => blocksOf(back.days[i]).map((b) => b.items.length)), [0, 1, 2, 3, 4, 5].map(sizes));
+eq('json round trip: kinds', blocksOf(back.days[1]).map((b) => b.kind), ['note', 'biset', 'biset', 'triset', 'biset', 'note']);
+eq('json round trip: same exercises', back.days.map((d) => d.items.filter((i) => i.kind === 'exercise').map((i) => exerciseKey(i.name))), parsed.days.map((d) => d.items.filter((i) => i.kind === 'exercise').map((i) => exerciseKey(i.name))));
+eq('json round trip: sets and reps', back.days[0].items[1], { kind: 'exercise', name: 'Agachamento Barra Livre', sets: 4, reps: '15/12/10/8', group: 1 });
+eq('json by hand', parsePlanJson({ days: [{ label: 'a', blocks: [{ text: 'Warm up' }, { exercises: [{ name: 'Squat', sets: '3', reps: 10 }, { name: 'Row', sets: 3 }] }] }] }).days[0].items.map((i) => [i.name, i.sets, i.reps, i.group]), [['Warm up', null, '', 0], ['Squat', 3, '10', 1], ['Row', 3, '', 1]]);
+const bad = (v: unknown) => { try { parsePlanJson(v); return ''; } catch (e) { return (e as Error).message; } };
+eq('json err: not a plan', /no "days"/.test(bad({ hello: 1 })), true);
+eq('json err: array', /no "days"/.test(bad([1, 2])), true);
+eq('json err: no label', /label/.test(bad({ days: [{ blocks: [{ text: 'x' }] }] })), true);
+eq('json err: duplicate letter', /twice/.test(bad({ days: [{ label: 'A', blocks: [{ exercises: [{ name: 'X', sets: 3 }] }] }, { label: 'a', blocks: [{ exercises: [{ name: 'Y', sets: 3 }] }] }] })), true);
+eq('json err: no sets', /"sets"/.test(bad({ days: [{ label: 'A', blocks: [{ exercises: [{ name: 'X' }] }] }] })), true);
+eq('json err: empty block', /needs "exercises" or "text"/.test(bad({ days: [{ label: 'A', blocks: [{}] }] })), true);
+eq('json err: only notes', /no exercises/.test(bad({ days: [{ label: 'A', blocks: [{ text: 'Stretch' }] }] })), true);
+eq('json err says where', /Treino A, block 2/.test(bad({ days: [{ label: 'A', blocks: [{ text: 'w' }, {}] }] })), true);
 
 // header line right above a block-ending header is dropped even without empty rows
 eq('banner right after items', parsePlanRows([['TREINO A', 'SÉRIE', 'REP.'], ['X', 3, 10], ['COACH NAME'], ['CONSULTORIA E PERIODIZAÇÃO']]).days[0].items.map((i) => i.name), ['X']);

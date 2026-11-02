@@ -339,3 +339,89 @@ export function parsePlanRows(rows: readonly (readonly Cell[])[]): ParsedPlan {
   days.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
   return { name, days };
 }
+
+// ---------------------------------------------------------------------------
+// Plan file (.json): the same plan with the blocks written out, so nothing depends on the spreadsheet layout
+// ---------------------------------------------------------------------------
+
+const JSON_BLOCK_TYPE: Record<BlockKind, string> = { note: 'note', solo: 'solo', biset: 'bi-set', triset: 'tri-set', giant: 'giant-set' };
+
+/** The plan as a readable file: warm-up and stretching notes, solo exercises, bi-sets, tri-sets. */
+export function planToJson(plan: ParsedPlan) {
+  return {
+    format: 'workouts-plan',
+    version: 1,
+    name: plan.name,
+    days: plan.days.map((d) => ({
+      label: d.label,
+      tag: d.tag ? prettyName(d.tag) : null,
+      blocks: blocksOf(d).map((b) =>
+        b.kind === 'note'
+          ? { type: JSON_BLOCK_TYPE.note, text: prettyName(b.items[0].item.name) }
+          : {
+              type: JSON_BLOCK_TYPE[b.kind],
+              exercises: b.items.map(({ item }) => ({
+                name: prettyName(item.name),
+                sets: item.sets ?? 1,
+                ...(item.reps ? { reps: item.reps } : {}),
+              })),
+            },
+      ),
+    })),
+  };
+}
+
+function fail(where: string, what: string): never {
+  throw new Error(`Plan file: ${where}: ${what}`);
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * Reads a plan file made by planToJson. A block is `{ text }` (a note) or `{ exercises: [...] }`;
+ * its type is only a label, the number of exercises decides: 1 solo, 2 bi-set, 3 tri-set, more is a giant set.
+ */
+export function parsePlanJson(input: unknown): ParsedPlan {
+  if (!isObject(input) || !Array.isArray(input.days) || input.days.length === 0) fail('file', 'no "days" found');
+  const name = typeof input.name === 'string' && input.name.trim() ? input.name.trim() : null;
+  const days: PlanDay[] = [];
+  const seen = new Set<string>();
+
+  input.days.forEach((rawDay, di) => {
+    if (!isObject(rawDay)) fail(`day ${di + 1}`, 'expected an object');
+    const label = typeof rawDay.label === 'string' ? rawDay.label.trim().toUpperCase() : '';
+    if (!label || label.length > 8) fail(`day ${di + 1}`, 'missing "label" (A, B, C...)');
+    if (seen.has(label)) fail(`Treino ${label}`, 'this letter appears twice');
+    seen.add(label);
+    if (!Array.isArray(rawDay.blocks) || rawDay.blocks.length === 0) fail(`Treino ${label}`, 'no "blocks"');
+    const tag = typeof rawDay.tag === 'string' && rawDay.tag.trim() ? rawDay.tag.trim() : null;
+
+    const items: PlanItem[] = [];
+    rawDay.blocks.forEach((rawBlock, bi) => {
+      const where = `Treino ${label}, block ${bi + 1}`;
+      if (!isObject(rawBlock)) fail(where, 'expected an object');
+      const group = bi;
+      if (Array.isArray(rawBlock.exercises)) {
+        if (rawBlock.exercises.length === 0) fail(where, '"exercises" is empty');
+        rawBlock.exercises.forEach((rawEx, ei) => {
+          if (!isObject(rawEx)) fail(where, `exercise ${ei + 1} should be an object`);
+          const exName = typeof rawEx.name === 'string' ? rawEx.name.trim().replace(/\s+/g, ' ') : '';
+          if (!exName) fail(where, `exercise ${ei + 1} has no "name"`);
+          const sets = Number(typeof rawEx.sets === 'string' ? rawEx.sets.replace(',', '.') : rawEx.sets);
+          if (!Number.isFinite(sets) || sets < 1 || sets > 30) fail(`${where}, ${exName}`, '"sets" should be a number from 1 to 30');
+          const reps = rawEx.reps === undefined || rawEx.reps === null ? '' : String(rawEx.reps).trim();
+          items.push({ kind: 'exercise', name: exName, sets: Math.round(sets), reps, group });
+        });
+      } else if (typeof rawBlock.text === 'string' && rawBlock.text.trim()) {
+        items.push({ kind: 'note', name: rawBlock.text.trim().replace(/\s+/g, ' '), sets: null, reps: '', group });
+      } else {
+        fail(where, 'needs "exercises" or "text"');
+      }
+    });
+    if (!items.some((i) => i.kind === 'exercise')) fail(`Treino ${label}`, 'has no exercises');
+    days.push({ label, tag, items });
+  });
+
+  days.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
+  return { name, days };
+}

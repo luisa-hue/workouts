@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { FileSpreadsheet } from 'lucide-react';
 import { usePlans, type NewPlan } from '../lib/plans-context';
-import { blocksOf, parsePlanRows, planEnd, prettyName, suggestRestDays, trainingDaysPerWeek, type ParsedPlan } from '../lib/plan';
+import { blocksOf, parsePlanJson, parsePlanRows, planEnd, prettyName, suggestRestDays, trainingDaysPerWeek, type ParsedPlan } from '../lib/plan';
 import { formatMedium, todayISO, weekdayName } from '../lib/dates';
 
 /** Monday first. */
@@ -142,9 +142,20 @@ export default function PlanSettings() {
     setProblem(null);
     setReading(true);
     try {
-      const { readSheet } = await import('read-excel-file/browser');
-      const rows = await readSheet(file);
-      setDraft({ parsed: parsePlanRows(rows), fileName: file.name.replace(/\.[^.]+$/, '') });
+      const fileName = file.name.replace(/\.[^.]+$/, '');
+      if (/\.json$/i.test(file.name)) {
+        let data: unknown;
+        try {
+          data = JSON.parse(await file.text());
+        } catch {
+          throw new Error('That file is not a valid plan file (.json).');
+        }
+        setDraft({ parsed: parsePlanJson(data), fileName });
+      } else {
+        const { readSheet } = await import('read-excel-file/browser');
+        const rows = await readSheet(file);
+        setDraft({ parsed: parsePlanRows(rows), fileName });
+      }
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'Could not read that file.');
     } finally {
@@ -162,7 +173,7 @@ export default function PlanSettings() {
 
   const picker = (
     <>
-      <input ref={fileInput} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={(e) => void onFile(e.target.files)} />
+      <input ref={fileInput} type="file" accept=".json,application/json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={(e) => void onFile(e.target.files)} />
       <button
         type="button"
         className={plan ? 'secondary-btn pressable' : 'primary-btn pressable'}
@@ -170,7 +181,7 @@ export default function PlanSettings() {
         onClick={() => fileInput.current?.click()}
       >
         <FileSpreadsheet size={18} />
-        {reading ? 'Reading…' : plan ? 'Import a new plan' : 'Choose xlsx file'}
+        {reading ? 'Reading…' : plan ? 'Import a new plan' : 'Choose plan file'}
       </button>
     </>
   );
@@ -228,7 +239,7 @@ export default function PlanSettings() {
           </section>
           {problem && <p className="error">{problem}</p>}
           <section className="card">
-            <p className="card-text">A new xlsx replaces this plan from the date you choose. Your logs stay.</p>
+            <p className="card-text">A new file replaces this plan from the date you choose. Your logs stay.</p>
             {picker}
           </section>
           <section className="card list danger-zone">
@@ -247,7 +258,7 @@ export default function PlanSettings() {
       ) : (
         <section className="card">
           <p className="card-text">
-            Import the xlsx from your coach. The app finds the workouts (Treino A, B, C…), you choose the start date, rest days and how many months the plan runs.
+            Import your plan file (.json), or the coach's xlsx directly. You choose the start date, the rest days and how many months the plan runs.
           </p>
           {picker}
           {problem && <p className="error">{problem}</p>}
