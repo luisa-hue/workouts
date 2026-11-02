@@ -9,8 +9,7 @@ export interface IconChoice {
 }
 
 export const ICONS: readonly IconChoice[] = [
-  { id: 'default', name: 'Barbell', src: '/icons/apple-touch-icon.png' },
-  { id: 'silhouette', name: 'Silhouette', src: '/icons/choice-silhouette.png' },
+  { id: 'default', name: 'Silhouette', src: '/icons/apple-touch-icon.png' },
   { id: 'crack', name: 'Breakthrough', src: '/icons/choice-crack.png' },
   { id: 'squat', name: 'Squat', src: '/icons/choice-squat.png' },
 ];
